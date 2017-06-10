@@ -45,19 +45,6 @@ def getdiffwords(q1, q2):
     qdf1 = [w for w in word1 if w not in word2]
     return " ".join(qdf1)
 
-model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-vocab = model.vocab
-train = pd.read_csv('./train_all_raw.csv')[:]
-test = pd.read_csv('./test_all_raw.csv')[:]
-train = train.fillna('empty')
-test = test.fillna('empty')
-
-#clean
-
-tfidf_txt = train['question1'].tolist() + train['question2'].tolist() + test['question1'].tolist() + test['question2'].tolist()
-train_qs = pd.Series(tfidf_txt).astype(str)
-dictionary = Dictionary(list(tokenize(x, errors='ignore')) for x in tfidf_txt)
-
 class MyCorpus(object):
     def __iter__(self):
         for x in tfidf_txt:
@@ -233,47 +220,28 @@ def get_features(df_features):
     df_features.fillna(0.0)
     return df_features
 
-train = get_features(train)
-col = [c for c in train.columns if c[:1]=='z']
 
-train.to_csv('train_weight_noweight.csv', index=False, columns = col)
+if __name__ == '__main__':
+    model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+    vocab = model.vocab
+    train = pd.read_csv('./train_all_raw.csv')[:]
+    test = pd.read_csv('./test_all_raw.csv')[:]
+    train = train.fillna('empty')
+    test = test.fillna('empty')
+
+    # clean
+    tfidf_txt = train['question1'].tolist() + train['question2'].tolist() + test['question1'].tolist() + test[
+        'question2'].tolist()
+    train_qs = pd.Series(tfidf_txt).astype(str)
+    dictionary = Dictionary(list(tokenize(x, errors='ignore')) for x in tfidf_txt)
+
+    col = [c for c in train.columns if c[:1] == 'z' or c[:1] == 'f']
+
+    train = get_features(train)
+    train.to_csv('train_weight_noweight.csv', index=False, columns = col)
+
+    test = get_features(test)
+    test.to_csv('test_weight_noweight.csv', index=False,columns = col)
 
 
-pos_train = train[train['is_duplicate'] == 1]
-neg_train = train[train['is_duplicate'] == 0]
-p = 0.165
-scale = ((len(pos_train) / (len(pos_train) + len(neg_train))) / p) - 1
-while scale > 1:
-    neg_train = pd.concat([neg_train, neg_train])
-    scale -=1
-neg_train = pd.concat([neg_train, neg_train[:int(scale * len(neg_train))]])
-train = pd.concat([pos_train, neg_train])
-
-x_train, x_valid, y_train, y_valid = train_test_split(train[col], train['is_duplicate'], test_size=0.2, random_state=0)
-
-params = {}
-params["objective"] = "binary:logistic"
-params['eval_metric'] = 'logloss'
-params["eta"] = 0.02
-params["subsample"] = 0.8
-params["min_child_weight"] = 1
-params["colsample_bytree"] = 0.8
-params["max_depth"] = 8
-params["silent"] = 1
-params["seed"] = 1632
-
-d_train = xgb.DMatrix(x_train, label=y_train)
-d_valid = xgb.DMatrix(x_valid, label=y_valid)
-watchlist = [(d_train, 'train'), (d_valid, 'valid')]
-bst = xgb.train(params, d_train, 500, watchlist, early_stopping_rounds=50, verbose_eval=100) #change to higher #s
-print(log_loss(train.is_duplicate, bst.predict(xgb.DMatrix(train[col]))))
-
-test = get_features(test)
-test.to_csv('test_weight_noweight.csv', index=False,columns = col)
-
-sub = pd.DataFrame()
-sub['test_id'] = test['test_id']
-sub['is_duplicate'] = bst.predict(xgb.DMatrix(test[col]))
-
-sub.to_csv('submit_weight_noweight.csv', index=False)
 

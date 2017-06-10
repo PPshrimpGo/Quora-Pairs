@@ -85,4 +85,4 @@ if __name__ == "__main__":
     train.to_csv('train_bagofwords400.csv', index=False, columns = col)
     test = makeFeature(test)
     test.to_csv('test_bagofwords400.csv', index=False, columns = col)
-    print("done bag of words")
+    print ("done bag of words")

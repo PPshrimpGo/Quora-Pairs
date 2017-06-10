@@ -150,13 +150,6 @@ def word_weights(data):
 # 输入两个wordlist
 # 默认句子中每个词权重相同，实际可以更改
 
-train, test = readData()
-train_qs = pd.Series(train['q1_expand'].tolist() + train['q2_expand'].tolist() + test['q1_expand'].tolist() + test['q2_expand'].tolist()).astype(str)
-eps = 5000 
-words = (" ".join(train_qs)).lower().split()
-counts = Counter(words)
-weights = {word: get_weight(count) for word, count in counts.items()}
-
 def getDiff(wordlist_1, wordlist_2, discal, model):
     sim = 0.0
     for word_1 in wordlist_1:
@@ -239,49 +232,16 @@ def makeFeature(df_features):
     return df_features
 
 if __name__ == "__main__":
+    train, test = readData()
+    train_qs = pd.Series(train['q1_expand'].tolist() + train['q2_expand'].tolist() + test['q1_expand'].tolist() + test[
+        'q2_expand'].tolist()).astype(str)
+    eps = 5000
+    words = (" ".join(train_qs)).lower().split()
+    counts = Counter(words)
+    weights = {word: get_weight(count) for word, count in counts.items()}
 
     train = makeFeature(train)
     train.to_csv('train_string_based_feature.csv', index=False)
-    #train = [c for c in train.columns if c[:1] == 'f']
-    #############
-    col = [c for c in train.columns if c[:1]=='f']
-    pos_train = train[train['is_duplicate'] == 1]
-    neg_train = train[train['is_duplicate'] == 0]
-    p = 0.165
-    scale = ((len(pos_train) / (len(pos_train) + len(neg_train))) / p) - 1
-    while scale > 1:
-        neg_train = pd.concat([neg_train, neg_train])
-        scale -=1
-    neg_train = pd.concat([neg_train, neg_train[:int(scale * len(neg_train))]])
-    train = pd.concat([pos_train, neg_train])
-
-    x_train, x_valid, y_train, y_valid = train_test_split(train[col], train['is_duplicate'], test_size=0.2, random_state=0)
-
-    params = {}
-    params["objective"] = "binary:logistic"
-    params['eval_metric'] = 'logloss'
-    params["eta"] = 0.04
-    params["subsample"] = 0.9
-    params["min_child_weight"] = 1
-    params["colsample_bytree"] = 0.8
-    params["max_depth"] = 8
-    params["silent"] = 1
-    params["seed"] = 1632
-    params["gama"] = 0.005
-
-    d_train = xgb.DMatrix(x_train, label=y_train)
-    d_valid = xgb.DMatrix(x_valid, label=y_valid)
-    watchlist = [(d_train, 'train'), (d_valid, 'valid')]
-    bst = xgb.train(params, d_train, 600, watchlist, early_stopping_rounds=50, verbose_eval=100) #change to higher #s
-    print(log_loss(train.is_duplicate, bst.predict(xgb.DMatrix(train[col]))))
-
-    #############
 
     test = makeFeature(test)
     test.to_csv('test_string_based_feature.csv', index=False)
-    #test = [c for c in test_features.columns if c[:1] == 'f']
-    sub = pd.DataFrame()
-    sub['test_id'] = test['test_id']
-    sub['is_duplicate'] = bst.predict(xgb.DMatrix(test[col]))
-
-    sub.to_csv('summit_stringbase.csv', index=False)

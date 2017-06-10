@@ -162,7 +162,7 @@ def get_weight(count, eps=10000, min_count=2):
     else:
         return 1 / (count + eps)
 
-eps = 5000 
+eps = 5000
 words = (" ".join(train_qs)).lower().split()
 counts = Counter(words)
 weights = {word: get_weight(count) for word, count in counts.items()}
@@ -368,46 +368,11 @@ def get_features(df_features):
     df_features.fillna(0.0)
     return df_features
 
-train = get_features(train)
-train.to_csv('train_weight_tfidf.csv', index=False)
 
-col = [c for c in train.columns if c[:1]=='z']
+if __name__ == '__main__':
+    train = get_features(train)
+    train.to_csv('train_weight_tfidf.csv', index=False)
 
-pos_train = train[train['is_duplicate'] == 1]
-neg_train = train[train['is_duplicate'] == 0]
-p = 0.165
-scale = ((len(pos_train) / (len(pos_train) + len(neg_train))) / p) - 1
-while scale > 1:
-    neg_train = pd.concat([neg_train, neg_train])
-    scale -=1
-neg_train = pd.concat([neg_train, neg_train[:int(scale * len(neg_train))]])
-train = pd.concat([pos_train, neg_train])
-
-x_train, x_valid, y_train, y_valid = train_test_split(train[col], train['is_duplicate'], test_size=0.2, random_state=0)
-
-params = {}
-params["objective"] = "binary:logistic"
-params['eval_metric'] = 'logloss'
-params["eta"] = 0.02
-params["subsample"] = 0.8
-params["min_child_weight"] = 1
-params["colsample_bytree"] = 0.8
-params["max_depth"] = 8
-params["silent"] = 1
-params["seed"] = 1632
-
-d_train = xgb.DMatrix(x_train, label=y_train)
-d_valid = xgb.DMatrix(x_valid, label=y_valid)
-watchlist = [(d_train, 'train'), (d_valid, 'valid')]
-bst = xgb.train(params, d_train, 500, watchlist, early_stopping_rounds=50, verbose_eval=100) #change to higher #s
-print(log_loss(train.is_duplicate, bst.predict(xgb.DMatrix(train[col]))))
-
-test = get_features(test)
-test.to_csv('test_weight_tfidf.csv', index=False)
-
-sub = pd.DataFrame()
-sub['test_id'] = test['test_id']
-sub['is_duplicate'] = bst.predict(xgb.DMatrix(test[col]))
-
-sub.to_csv('sub_weight_tfidf.csv', index=False)
+    test = get_features(test)
+    test.to_csv('test_weight_tfidf.csv', index=False)
 
