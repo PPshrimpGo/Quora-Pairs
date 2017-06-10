@@ -15,9 +15,9 @@
 - bagofwords
 
 使用了sklearn.feature_extraction.text中的CountVectorizer，生成了Bagofwords特征，实验之后选的参数是ngram(1,3)。
-具体的代码在bagofwords.py里面。使用一个向量标注了两问题对应bagofwords的不同，作为一个特征输入到模型里，特征的维度是400.
+具体的代码在bagofwords.py里面。使用一个向量标注了两问题对应bagofwords的不同，作为一个特征输入到模型里，选取的特征的维度是400。可以考虑对这个特征特征做矩阵分解的降维处理，占了整个树模型的大部分参数。
 
-最后模型使用了改特征。
+最后模型使用了该特征。
 
 - n-gram @ word and char level
 
@@ -26,7 +26,7 @@
 
 - 基本的句子（字符和单词）统计特征
 
-分词性统计了名词，动词相同的个数，基本的句子长度，词的数量，相同词的匹配率，tfidf的求和，平均，长度（后来思考一下这些特征做一些多项式组合可能会更好。）针对有无停用词的相同比率，相同词的数量不同词的数量等。还有针对字符级别的异同数量统计
+分词性统计了名词，动词相同的个数，基本的句子长度，词的数量，相同词的匹配率，tfidf的求和，平均，长度（后来思考一下这些特征做一些多项式组合可能会更好。）针对有无停用词的相同比率，相同词的数量不同词的数量等。还有针对字符级别的异同数量统计。
 
 #### 词向量表示句子的特征
 
@@ -36,27 +36,26 @@
 
 - 求句子的表示，计算向量的距离和分布特征
 
-句子的表示采用了两种种方法，一种是Bagofwords平均，一种是是Bagofwords的tfidf加权平均。拿到句子表示之后，计算了向量的距离：cosine,manhatton,euclidean，pearson，spearman，kendall
+句子的表示采用了两种种方法，一种是Bagofwords的直接平均，一种是是Bagofwords的tfidf加权平均。拿到句子表示之后，计算了向量的距离：cosine,manhatton,euclidean。以及数据特征：pearson，spearman，kendall
 
-- 论文From wordembedding to docunment distacne的距离计算方法
 
 - doc2vec产生词向量
 
-PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后衡量相似度，这部分特征最终没有使用。、
+PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后衡量相似度，这部分特征最终没有使用。
 
 - （1-3gram） tfidf的向量
 
 拿到向量后计算距离
 
-- 计算两个text之间的距离
+- 直接计算两个text之间的距离
 
-参考了一篇论文，直接计算两个text之间的距离。
-1 对text中每个词的词向量求平均，获得一个平均的text向量，再用上述方法求两个句子向量之间的距离。
-2 对text中的每个词，找到另一个text中最近的词，求出距离，最后再做平均。将两个句子进行双向处理，获得两个距离，再取平均。
+1 编辑距离
+2 论文From wordembedding to docunment distacne的距离计算对text中的每个词，找到另一个text中最近的词，求出距离，最后再做平均。将两个句子进行双向处理，获得两个距离，再取平均。
+
 
 #### magic feature
  - 1、问题的频度
- - 2、基于问题构建的图，计算共同临接点的数量
+ - 2、基于问题构建的图，计算相同临接点的数量
  - 3、在2的基础上做word_match_share的加权
 这两个提升很大，个人感觉第一个magic仔细研究数据可以发现，这也是说明了对数据做explore的重要性，第二个发现起来比较困难。
 
@@ -68,7 +67,9 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
 - 4 对tfidf矩阵做svd矩阵分解
 
 ### 三、模型总结
-以上所有特征输入到XGBoost中，其中针对负类的做了百分之80的过采样，参数如下：
+
+#### XGBoost
+以上所有特征输入到XGBoost中，参数如下：
 ```
 {
     'colsample_bytree': 0.7,
@@ -84,6 +85,13 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
 }
 ```
 单个模型取得最好的成绩是0.14090
+#### LSTM
+
+LSTM的输入是sequence和去除了bagofwords和magic特征的组合。在CV上表现大约为0.12，但是最后还是过拟合挺严重，PB上大概0.20。
+
+#### 过采样和rescale
+其中针对重复的问题的做了百分之80的过采样，对结果提升较大。结果没有进行rescale，没有这方面的经验，经过尝试效果一般。
+
 
 ### 四、stack和ensemble
 
@@ -95,8 +103,8 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
     xgboost(0.14),
     LoesticRegression(0.19),
     RandomForestClassifier(0.19),
-     GradientBoostingClassifier(0.19),
-     LSTM(0.20)
+    GradientBoostingClassifier(0.19),
+    LSTM(0.20)
 }
 ```
 
@@ -120,8 +128,9 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
 1 没有对特征进行分类管理
 2 只调优一个单个模型，没有考虑特征之间的相互作用
 3 没有考虑特征之间的多项式组合，舍弃了一些特征，只保留了一个模型。
+4 没有对一些特征结合数据分布做深入的思考，尤其是图方面的特征。顺着这个思路下去可以挖掘比较深。第一次比赛，过分与侧重问题本身，即“相似性”。对于数据的特征探索有所忽略。
 
-- stack
+- stacking
 
 进行的太晚，发现问题（相关性太强）的时候已经来不及了，总的来说，stack应该取得不错的提升。
 
