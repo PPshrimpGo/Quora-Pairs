@@ -20,7 +20,7 @@
 
 - n-gram@word and char level
 
-使用了1-3的字符和单词的gram，计算了各种距离，其中包括simhash<http://yanyiwu.com/work/2014/01/30/simhash-shi-xian-xiang-jie.html>
+使用了1-3的字符和单词的gram，计算了各种距离，其中包括[simhash](http://yanyiwu.com/work/2014/01/30/simhash-shi-xian-xiang-jie.html)
 ,还有Ochiai，Dice，Jaccarc在集合层次计算相似度的一些衡量手段。
 
 - 基本的句子（字符和单词）统计特征
