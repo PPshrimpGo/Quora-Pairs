@@ -1,5 +1,5 @@
-##Quora: Questions pairs 总结
-###一、数据清洗总结
+## Quora: Questions pairs 总结
+### 一、数据清洗总结
 
 - fillna('EMPTY')对异常值得处理
 - 停用词，标点符号，专有符号的去除和转换
@@ -9,8 +9,8 @@
 
 
 
-###二、特征总结
-####字符和gram层次的特征
+### 二、特征总结
+#### 字符和gram层次的特征
 - bagofwords
 
 使用了sklearn.feature_extraction.text中的CountVectorizer，生成了Bagofwords特征，实验之后选的参数是ngram(1,3)。
@@ -27,7 +27,7 @@
 
 分词性统计了名词，动词相同的个数，基本的句子长度，词的数量，相同词的匹配率，tfidf的求和，平均，长度（后来思考一下这些特征做一些多项式组合可能会更好。）针对有无停用词的相同比率，相同词的数量不同词的数量等。还有针对字符级别的异同数量统计
 
-####词向量表示句子的特征
+#### 词向量表示句子的特征
 
 - 词向量对句子进行相似词的扩充
 
@@ -46,20 +46,20 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
 - （1-3gram） tfidf的向量
 拿到向量后计算距离
 
-####magic feature
+#### magic feature
  - 1、问题的频度
  - 2、基于问题构建的图，计算共同临接点的数量
  - 3、在2的基础上做word_match_share的加权
 这两个提升很大，个人感觉第一个magic仔细研究数据可以发现，这也是说明了对数据做explore的重要性，第二个发现起来比较困难。
 
-####其他的一些特征
+#### 其他的一些特征
 - 1、kcore <https://www.kaggle.com/c/quora-question-pairs/discussion/33371>
 - 2、pagerank <https://www.kaggle.com/shubh24/pagerank-on-quora-a-basic-implementation>
 - 3、wordnet 计算相似度
 > Wordnet is a huge library of synsets for almost all words in the English dictionary. The synsets for each word describe its meaning, part of speeches, and synonyms/antonyms. The synonyms help in identifying the semantic meaning of the sentence, when all words are taken together.
 - 对tfidf矩阵做svd矩阵分解
 
-###三、模型总结
+### 三、模型总结
 以上所有特征输入到XGBoost中，其中针对负类的做了百分之80的过采样，参数如下：
 > {'colsample_bytree': 0.7, 'silent': 1, 'eval_metric': 'logloss', 'min_child_weight': 1, 'subsample': 0.8, 'eta': 0.05, 'gama': 0.005, 'objective': 'binary:logistic', 'seed': 1632, 'max_depth': 8}
 单个模型取得最好的成绩是0.14090
@@ -69,7 +69,7 @@ PV-DBOW，PV-DM w/average，PV-DM w/concatenation - window=5 得到向量之后�
 第一层模型我们采用了xgboost(0.14),LoesticRegression(0.19),RandomForestClassifier(0.19), GradientBoostingClassifier(0.19),LSTM(0.20)这五个模型（括号内为LeaderBoard的score）。做了5折stack，效果不理想，个人思考不同的模型使用了相同的特征，模型之间的diversity很小。最后提交使用了LSTM和XGB的平均，这个LSTM后来发现其效果是0.2，blending的结果不是很差可能是因为模型的diversity。
 最终的结果是 0.5XGB+0.5LSTM 提升到0.14033
 
-###五、经验教训
+### 五、经验教训
 
 - 特征管理
 
